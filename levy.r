@@ -3,17 +3,18 @@ require('actuar')
 
 stable_process <- function(t_in, t_fin, ngrid, epsilon, sigma) {
 # Simulation of jumps
-  M <- epsilon ^ (- sigma) / sigma
-  N <- rpois(1, t_fin * M)
+  M <- 2 * epsilon ^ (- sigma) / sigma
+  N <- rpois(1, (t_fin-t_in) * M)
   time_jump<- runif(N, t_in, t_fin)
-  delta_x <- rpareto(N, sigma, epsilon)
+  delta_x <- (2*rbinom(N,1,0.5)-1) * rpareto(N, sigma, epsilon)
 
   time <- seq(t_in, t_fin, length.out = ngrid)
   time <- c(time_jump, time)
   index <- order(time)
   time <- sort(time)
-  X <- c(0, rep(- (t_fin - t_in) / ngrid, ngrid - 1))
-  mu_epsilon <- (1 - epsilon ^ (1 - sigma)) / (1-sigma)
+  # mu_epsilon <- (1 - epsilon ^ (1 - sigma)) / (1-sigma)
+  mu_epsilon <- 0
+  X <- c(0, rep(- mu_epsilon * (t_fin - t_in) / ngrid, ngrid - 1))
   X <- c(delta_x, X)
   X <- X[index]
   X <- cumsum(X)
