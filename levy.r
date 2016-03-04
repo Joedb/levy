@@ -147,6 +147,44 @@ compare_stable <- function(epsilon, sigma, num_samples, density = F){
 compare_stable(0.01, 0.5, 10000, F)
 compare_stable(0.01, 0.5, 10000, T)
 
+simulate_gamma <- function(iter, sigma, tau, epsilon){
+  x_star = -1/tau * log(sigma * epsilon ^ sigma)
+  pareto <- function(x){
+    dpareto(x,sigma, epsilon)
+  }
+  density <- function(x)
+    return (x^(-1-sigma) * exp(-tau * x))
+  M <- integrate(density, epsilon, Inf)[[1]]
+  f <- function(x)
+    return(density(x)/M)
+  
+  P = integrate(pareto, x_star, Inf)[[1]]
+  MaxVal = epsilon ^(-1-sigma) * exp(-tau * epsilon)
+  A = x_star * MaxVal
+
+  total_accepted = 0
+  samples <- rep(0, iter)
+  while (total_accepted < iter){
+    if (runif(1,0,1) < A/(P+A) ){
+      y <- runif(1,0,x_star)
+      if (runif(1,0, MaxVal) < f(y)){
+        total_accepted = total_accepted + 1
+        samples[total_accepted] = y
+      }
+    }
+    else{
+      y <- rpareto(1, sigma, epsilon)
+      while (y < x_star)
+        y <- rpareto(1, sigma, epsilon)
+      if (runif(1,0, dpareto(y, sigma, epsilon)) < f(y)){
+        total_accepted = total_accepted + 1
+        samples[total_accepted] = y
+      }
+    }
+  }
+  return(samples)
+}
+
 gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
 # Simulation of jumps
   density <- function(x)
@@ -159,14 +197,7 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   
   N <- rpois(1, (t_fin - t_in) * M)
   time_jump <- runif(N, t_in, t_fin)
-  delta_x <- rep(0,N)
-  for (i in 1:N) {
-    x <- rpareto(1, sigma, epsilon)
-    
-    while (runif(1, 0, (epsilon^(-sigma) / sigma) * dpareto(x, sigma, epsilon)) > density(x))
-      x <- rpareto(1, sigma, epsilon)
-    delta_x[i] <- x / M
-  }
+  delta_x <- simulate_gamma(N, sigma, tau, epsilon)/ M
 
   time <- seq(t_in, t_fin, length.out = ngrid)
   time <- c(time_jump, time)
@@ -186,7 +217,10 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   return (N)
 }
 
-gamma_process(0,1,1000,0.01,0.02,0.01)
+gamma_process(0,1,1000,0.01,0.05,0.05)
+
+
+# pgamma(epsilon, 2-sigma, tau) * gamma(2-sigma) /tau^(2-sigma)
 
 
 density <- function(x)
