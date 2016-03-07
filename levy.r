@@ -99,6 +99,8 @@ test_stable_package <- function(){
 }
 test_stable_package()
 
+
+#============================== STABLE PROCESS ==============================
 stable_process <- function(t_in, t_fin, ngrid, epsilon, sigma, show_plot = F) {
   # Simulation of jumps
   M <- 2 * epsilon ^ (- sigma) / sigma
@@ -112,10 +114,19 @@ stable_process <- function(t_in, t_fin, ngrid, epsilon, sigma, show_plot = F) {
   time <- sort(time)
   # mu_epsilon <- (1 - epsilon ^ (1 - sigma)) / (1-sigma)
   mu_epsilon <- 0
+  
+# BM variance 
+  sigma_2eps <- (2 / (2 - sigma)) * epsilon ^ (2 - sigma)
+  W <- rep(0, ngrid + N)
+  W[2:(ngrid + N)] <- cumsum(W[1:(ngrid + N - 1)] +
+                             rnorm(ngrid + N - 1,sqrt( sigma_2eps *
+                                                      (time[2:(ngrid+N)] - time[1:(ngrid+N-1)])))) 
+
   X <- c(0, rep(mu_epsilon * (t_fin - t_in) / ngrid, ngrid - 1))
   X <- c(delta_x, X)
   X <- X[index]
   X <- cumsum(X)
+  X <- X + W
   if (show_plot){
     plot(time, X)
     plot_process(time, time_jump,delta_x, X)
@@ -130,6 +141,7 @@ empirical_stable_distr <- function(epsilon, sigma, num_samples){
   }
   return(simul_val)
 }
+#==========================================================================
 
 berry_esseen_stable <- function(epsilon, sigma){
   sigma_sq <- 2 * epsilon^(2-sigma)/(2-sigma)
@@ -229,6 +241,7 @@ simulate_gamma <- function(n, sigma, tau, epsilon){
   return(samples)
 }
 
+#============================== GAMMA PROCESS ==============================
 gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
 # Simulation of jumps
   density <- function(x)
@@ -252,17 +265,25 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
      return (x^(-sigma) * exp(-tau * x))  
   mu_epsilon <- integrate(mean_jump_dens, epsilon, 1)[[1]]
 
+# BM variance 
+  sigma_2eps <- pgamma(epsilon, tau, rate = 3 - sigma) * gamma(3 - sigma) / tau ^ (3 - sigma)
+  W <- rep(0, ngrid + N)
+  W[2:(ngrid + N)] <- cumsum(W[1:(ngrid + N - 1)] +
+                             rnorm(ngrid + N - 1,sqrt( sigma_2eps *
+                                                      (time[2:(ngrid+N)] - time[1:(ngrid+N-1)])))) 
+  
   X <- c(0, rep( mu_epsilon * (t_fin - t_in) / ngrid, ngrid - 1))
 #  X <- rep(0, ngrid)
   X <- c(delta_x, X)
   X <- X[index]
   X <- cumsum(X)
+  X <- X + W
   plot(time, X)
   return (N)
 }
 
 gamma_process(0,1,1000,0.01,0.05,0.04)
-
+#============================================================================
 
 # pgamma(epsilon, 2-sigma, tau) * gamma(2-sigma) /tau^(2-sigma)
 
