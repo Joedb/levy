@@ -47,6 +47,8 @@ compare_distr <- function(distr_A, distr_B){
   nB <- length(distr_B)
   if (length(unique(union))!= nA + nB){
     print('resample and repeat, something went wrong')
+    print(length(unique(union)))
+    print(nA + nB)
     stop
   }
   dif_in_P <- rep(0, nA + nB)
@@ -132,20 +134,51 @@ empirical_stable_distr <- function(epsilon, sigma, num_samples){
   return(simul_val)
 }
 
-compare_stable <- function(epsilon, sigma, num_samples, density = F){
+berry_esseen_stable <- function(epsilon, sigma){
+  sigma_sq <- 2 * epsilon^(2-sigma)/(2-sigma)
+  third_moment <- 2 * epsilon^(3-sigma)/(3-sigma)
+  BE_bound <- 0.7975 * sigma_sq ^(-3/2) * third_moment
+  return(BE_bound)
+}
+
+compare_stable_fixed_eps <- function(epsilon, sigma, num_samples, density = F){
   empirical <- empirical_stable_distr(epsilon, sigma, num_samples)
   exact <- rstable(num_samples, alpha = sigma, beta = 0)
   if (density)
     compare_density_plots(empirical, exact)
   else{
     temp <- compare_distr(empirical, exact)
-    plot(temp$x, temp$dist, typ = 'l', xlim = c(-100,100))
+    bound <- berry_esseen_stable(epsilon, sigma)
+    plot(temp$x, temp$dist, typ = 'l', xlim = c(-100,100), ylim = c(0, max(c(1.1 * bound,temp$dist))))
+    print(bound)
+    abline(a = bound, b = 0, col = 'red')
   }
 }
 
+compare_stable <- function(epsilon_range, sigma, num_samples){
+  n <- length(epsilon_range)
+  max_discrep <- rep(0, n)
+  BE_bound <- rep(0, n)
+  
+  for (i in seq_along(epsilon_range)){
+    print(paste("Starting loop",i,"out of",n))
+    eps <- epsilon_range[i]
+    empirical <- empirical_stable_distr(eps, sigma, num_samples)
+    exact <- rstable(num_samples, alpha = sigma, beta = 0)
+    temp <- compare_distr(empirical, exact)
+    max_discrep[i] <- max(temp$dist)
+    BE_bound[i] <- berry_esseen_stable(eps, sigma)
+  }
+  
+  plot(epsilon_range, BE_bound, type = 'l', col = 'red', ylim = c(0, BE_bound[1]))
+  lines(epsilon_range, max_discrep)
+}
+
 # run some tests
-compare_stable(0.01, 0.5, 10000, F)
-compare_stable(0.01, 0.5, 10000, T)
+compare_stable_fixed_eps(0.01, 0.5, 10000, F)
+compare_stable_fixed_eps(0.01, 0.5, 10000, T)
+
+compare_stable(seq(1,0.1, by = -0.1), 0.5, 1000)
 
 simulate_gamma <- function(iter, sigma, tau, epsilon){
   x_star = -1/tau * log(sigma * epsilon ^ sigma)
