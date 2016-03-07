@@ -129,6 +129,7 @@ stable_process <- function(t_in, t_fin, ngrid, epsilon, sigma, show_plot = F) {
   
   # BM variance
   sigma_2eps <- (2 / (2 - sigma)) * epsilon ^ (2 - sigma)
+  print(sigma_2eps)
   W <- rep(0, ngrid + N)
   W[2:(ngrid + N)] <- cumsum(W[1:(ngrid + N - 1)] +
                                rnorm(ngrid + N - 1, 0,
@@ -304,10 +305,11 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   X <- c(0, rep(- (t_fin - t_in) / ngrid, ngrid - 1))
   mean_jump_dens <- function(x)
      return (x^(-sigma) * exp(-tau * x))  
-  mu_epsilon <- integrate(mean_jump_dens, epsilon, 1)[[1]]
+  mu_epsilon <- - integrate(mean_jump_dens, epsilon, 1)[[1]]
 
 # BM variance 
-  sigma_2eps <- pgamma(epsilon, tau, rate = 3 - sigma) * gamma(3 - sigma) / tau ^ (3 - sigma)
+  sigma_2eps <- integrate(function(x) exp(-tau * x) * x ^ (1-sigma),0,epsilon)[[1]]
+  print(sigma_2eps)
   W <- rep(0, ngrid + N)
   W[2:(ngrid + N)] <- cumsum(W[1:(ngrid + N - 1)] +
                              rnorm(ngrid + N - 1, 0,
@@ -323,7 +325,7 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   return (N)
 }
 
-gamma_process(0,1,1000,0.01,0.05,0.04)
+gamma_process(0,1,1000,0.1,0.05,0.04)
 #============================================================================
 
 # pgamma(epsilon, 2-sigma, tau) * gamma(2-sigma) /tau^(2-sigma)
