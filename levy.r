@@ -119,8 +119,8 @@ stable_process <- function(t_in, t_fin, ngrid, epsilon, sigma, show_plot = F) {
   sigma_2eps <- (2 / (2 - sigma)) * epsilon ^ (2 - sigma)
   W <- rep(0, ngrid + N)
   W[2:(ngrid + N)] <- cumsum(W[1:(ngrid + N - 1)] +
-                             rnorm(ngrid + N - 1,sqrt( sigma_2eps *
-                                                      (time[2:(ngrid+N)] - time[1:(ngrid+N-1)])))) 
+                             rnorm(ngrid + N - 1, 0,
+                                   sqrt( sigma_2eps * (time[2:(ngrid+N)] - time[1:(ngrid+N-1)])))) 
 
   X <- c(0, rep(mu_epsilon * (t_fin - t_in) / ngrid, ngrid - 1))
   X <- c(delta_x, X)
@@ -269,8 +269,8 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   sigma_2eps <- pgamma(epsilon, tau, rate = 3 - sigma) * gamma(3 - sigma) / tau ^ (3 - sigma)
   W <- rep(0, ngrid + N)
   W[2:(ngrid + N)] <- cumsum(W[1:(ngrid + N - 1)] +
-                             rnorm(ngrid + N - 1,sqrt( sigma_2eps *
-                                                      (time[2:(ngrid+N)] - time[1:(ngrid+N-1)])))) 
+                             rnorm(ngrid + N - 1, 0,
+                                   sqrt( sigma_2eps * (time[2:(ngrid+N)] - time[1:(ngrid+N-1)])))) 
   
   X <- c(0, rep( mu_epsilon * (t_fin - t_in) / ngrid, ngrid - 1))
 #  X <- rep(0, ngrid)
