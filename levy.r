@@ -79,6 +79,16 @@ compare_density_plots<-function(distr_A, distr_B, xlim = c(-50, 50)){
   print(p + geom_density(aes(group = group, colour = factor(group))) + xlim(xlim))
 }
 
+simul_stable <- function(n, alpha){
+  W <- rexp(n)
+  Phi <- runif(n, min = -0.5 * pi, max = 0.5 * pi)
+  S <- sin(alpha * Phi)/cos(Phi)^(1/alpha) * (cos(Phi * (1-alpha))/W)^((1-alpha)/alpha)
+  return(2 ^(1/alpha) * S)
+}
+
+
+
+
 test_stable_package <- function(){
   # not incredibly useful, just to make sure that the package
   # from CRAN is doing what it is supposed to do
@@ -86,10 +96,10 @@ test_stable_package <- function(){
     W <- rexp(n)
     Phi <- runif(n, min = -0.5 * pi, max = 0.5 * pi)
     S <- sin(alpha * Phi)/cos(Phi)^(1/alpha) * (cos(Phi * (1-alpha))/W)^((1-alpha)/alpha)
-    return(S)
+    return(2 ^(1/alpha) * S)
   }
   test_simulator <- function(sigma, num_samples, density = F){
-    package <- rstable(num_samples, alpha = sigma, beta = 0)
+    package <- rstable(num_samples, alpha = sigma, beta = 0, gamma = 2^(1/sigma))
     self <- simul_stable(num_samples, alpha = sigma)
     if (density)
       compare_density_plots(package, self)
@@ -101,13 +111,14 @@ test_stable_package <- function(){
   test_simulator(0.5, 10000, F)
   test_simulator(0.5, 10000, T)
 }
+test_stable_package()
 
 stable_process <- function(t_in, t_fin, ngrid, epsilon, sigma, show_plot = F) {
   # Simulation of jumps
   M <- 2 * epsilon ^ (- sigma) / sigma
   N <- rpois(1, (t_fin-t_in) * M)
   time_jump<- runif(N, t_in, t_fin)
-  delta_x <- (2*rbinom(N,1,0.5)-1) * rpareto(N, sigma, epsilon) / M
+  delta_x <- (2*rbinom(N,1,0.5)-1) * (rpareto(N, sigma, epsilon)+epsilon)
   
   time <- seq(t_in, t_fin, length.out = ngrid)
   time <- c(time_jump, time)
@@ -143,7 +154,7 @@ berry_esseen_stable <- function(epsilon, sigma){
 
 compare_stable_fixed_eps <- function(epsilon, sigma, num_samples, density = F){
   empirical <- empirical_stable_distr(epsilon, sigma, num_samples)
-  exact <- rstable(num_samples, alpha = sigma, beta = 0)
+  exact <- rstable(num_samples, alpha = sigma, beta = 0, gamma = 2^(1/sigma))
   if (density)
     compare_density_plots(empirical, exact)
   else{
@@ -177,10 +188,10 @@ compare_stable <- function(epsilon_range, sigma, num_samples){
 # run some tests
 compare_stable_fixed_eps(0.01, 0.5, 10000, F)
 compare_stable_fixed_eps(0.01, 0.5, 10000, T)
-
+?rpareto
 compare_stable(seq(1,0.1, by = -0.1), 0.5, 1000)
 
-simulate_gamma <- function(iter, sigma, tau, epsilon){
+simulate_gamma2 <- function(iter, sigma, tau, epsilon){
   x_star = -1/tau * log(sigma * epsilon ^ sigma)
   pareto <- function(x){
     dpareto(x,sigma, epsilon)
@@ -216,6 +227,10 @@ simulate_gamma <- function(iter, sigma, tau, epsilon){
     }
   }
   return(samples)
+}
+
+simulate_gamma <- function(n, sigma, tau, epsilon){
+  ...
 }
 
 gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
