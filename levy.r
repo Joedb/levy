@@ -101,34 +101,34 @@ test_stable_package()
 
 
 #============================== STABLE PROCESS ==============================
-time_and_proc_vecs <- function(time, time_jump, delta_x, ngrid){
+time_and_proc_vecs <- function(time, time_jump, delta_x, t_in, t_fin, ngrid, epsilon, c1, c2, sigma){
   time <- c(time_jump, time)
   index <- order(time)
   time <- sort(time)
+  mu_epsilon <- epsilon^(1-sigma)/(1-sigma)*(c1-c2)
   # mu_epsilon * (t_fin - t_in) / ngrid
-  X <- rep(0,ngrid)
+  X <- c(0,rep(mu_epsilon* (t_fin - t_in) / ngrid,ngrid-1))
   X <- c(delta_x, X)
   X <- X[index]
   X <- cumsum(X)
   return(list(time = time, X = X))
 }
 
-
-stable_process <- function(t_in, t_fin, ngrid, epsilon, sigma, show_plot = F) {
+stable_process <- function(t_in, t_fin, ngrid, epsilon, c1, c2, sigma, show_plot = F) {
   # Simulation of jumps
-  M <- 2 * epsilon ^ (- sigma) / sigma
+  M <- (c1+c2) * epsilon ^ (- sigma) / sigma 
   N <- rpois(1, (t_fin-t_in) * M)
   time_jump<- runif(N, t_in, t_fin)
-  delta_x <- (2*rbinom(N,1,0.5)-1) * (rpareto(N, sigma, epsilon)+epsilon)
+  delta_x <-  (2*rbinom(N,1,c1/(c1+c2))-1) * (rpareto(N, sigma, epsilon)+epsilon)
   
   time <- seq(t_in, t_fin, length.out = ngrid)
-  temp <- time_and_proc_vecs(time, time_jump, delta_x, ngrid)
+  temp <- time_and_proc_vecs(time, time_jump, delta_x, t_in, t_fin, ngrid, epsilon, c1, c2, sigma)
   X <- temp$X
   time <- temp$time
   #print(X)
   
   # BM variance
-  sigma_2eps <- (2 / (2 - sigma)) * epsilon ^ (2 - sigma)
+  sigma_2eps <- ((c1+c2) / (2 - sigma)) * epsilon ^ (2 - sigma)
   print(sigma_2eps)
   W <- rep(0, ngrid + N)
   W[2:(ngrid + N)] <- cumsum(W[1:(ngrid + N - 1)] +
@@ -142,37 +142,39 @@ stable_process <- function(t_in, t_fin, ngrid, epsilon, sigma, show_plot = F) {
   return(X[length(X)])
 }
 
-coupled_stable_processes <- function(t_in, t_fin, ngrid, epsilon, eps2, sigma, show_plot = F) {
+stable_process(0,1,1000,0.001,2,0.4,0.5,T)
+
+coupled_stable_processes <- function(t_in, t_fin, ngrid, eps_exact, eps_approx, c1, c2, sigma, show_plot = F) {
   # Simulation of jumps
-  M <- 2 * epsilon ^ (- sigma) / sigma
+  M <- (c1 + c2) * eps_exact ^ (- sigma) / sigma
   N <- rpois(1, (t_fin-t_in) * M)
   time_jump<- runif(N, t_in, t_fin)
-  delta_x <- (2*rbinom(N,1,0.5)-1) * (rpareto(N, sigma, epsilon)+epsilon)
+  delta_x <- (2*rbinom(N,1,c1/(c1+c2))-1) * (rpareto(N, sigma, eps_exact)+eps_exact)
   
-  index <- which(abs(delta_x) < eps2)
+  index <- which(abs(delta_x) < eps_approx)
   
   time <- seq(t_in, t_fin, length.out = ngrid)
-  exact <- time_and_proc_vecs(time, time_jump, delta_x, ngrid)
-  approx <- time_and_proc_vecs(time, time_jump[-index], delta_x[-index], ngrid)
+  exact <- time_and_proc_vecs(time, time_jump, delta_x, t_in, t_fin, ngrid, eps_exact, c1, c2, sigma)
+  approx <- time_and_proc_vecs(time, time_jump[-index], delta_x[-index], t_in, t_fin, ngrid, eps_approx, c1, c2, sigma)
   
   return(c(exact$X[length(exact$X)], approx$X[length(approx$X)]))
 }
 
-plot_errors <- function(sigma, reps, eps){
+plot_errors <- function(sigma, reps, eps, c1, c2){
   errors <- rep(0, reps)
   for (i in 1:reps){
-    X <- coupled_stable_processes(0,1,1000,eps[1],eps[2], sigma)
+    X <- coupled_stable_processes(0,1,1000,eps[1],eps[2], c1, c2, sigma)
     errors[i] <-  X[1]-X[2]
   }
   print(var(errors))
-  print(2/ (2-sigma) * eps[2]^(2-sigma))
-  qqnorm(errors/sqrt(2/ (2-sigma) * eps[2]^(2-sigma)))
+  print((c1 + c2)/ (2-sigma) * eps[2]^(2-sigma))
+  qqnorm(errors/sqrt((c1+c2)/ (2-sigma) * eps[2]^(2-sigma)))
   df <- data.frame(x = errors)
   p <- ggplot(df, aes(x = x))
   print(p +geom_density())
 }
 
-plot_errors(0.5, 1e4, eps = c(1e-5, 1e-1))
+plot_errors(0.5, 1e4, eps = c(1e-6, 1e-3), 1,0)
 
 
 
