@@ -152,11 +152,11 @@ simulate_gamma <- function(iter, sigma, tau, epsilon){
   pareto <- function(x){
     dpareto(x,sigma, epsilon)
   }
-  density <- function(x)
-    return (x^(-1-sigma) * exp(-tau * x))
-  M <- integrate(density, epsilon, Inf)[[1]]
   f <- function(x)
-    return(density(x)/M)
+    return (x^(-1-sigma) * exp(-tau * x))
+  M <- integrate(f, epsilon, Inf)[[1]]
+#  f <- function(x)
+#    return(density(x)/M)
   
   P = integrate(pareto, x_star, Inf)[[1]]
   MaxVal = epsilon ^(-1-sigma) * exp(-tau * epsilon)
@@ -217,7 +217,7 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   return (N)
 }
 
-gamma_process(0,1,1000,0.01,0.05,0.05)
+gamma_process(0,1,1000,0.01,0.05,0.04)
 
 
 # pgamma(epsilon, 2-sigma, tau) * gamma(2-sigma) /tau^(2-sigma)
