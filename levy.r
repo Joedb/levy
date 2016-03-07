@@ -101,6 +101,19 @@ test_stable_package()
 
 
 #============================== STABLE PROCESS ==============================
+time_and_proc_vecs <- function(time, time_jump, delta_x, ngrid){
+  time <- c(time_jump, time)
+  index <- order(time)
+  time <- sort(time)
+  # mu_epsilon * (t_fin - t_in) / ngrid
+  X <- rep(0,ngrid)
+  X <- c(delta_x, X)
+  X <- X[index]
+  X <- cumsum(X)
+  return(list(time = time, X = X))
+}
+
+
 stable_process <- function(t_in, t_fin, ngrid, epsilon, sigma, show_plot = F) {
   # Simulation of jumps
   M <- 2 * epsilon ^ (- sigma) / sigma
@@ -109,23 +122,17 @@ stable_process <- function(t_in, t_fin, ngrid, epsilon, sigma, show_plot = F) {
   delta_x <- (2*rbinom(N,1,0.5)-1) * (rpareto(N, sigma, epsilon)+epsilon)
   
   time <- seq(t_in, t_fin, length.out = ngrid)
-  time <- c(time_jump, time)
-  index <- order(time)
-  time <- sort(time)
-  # mu_epsilon <- (1 - epsilon ^ (1 - sigma)) / (1-sigma)
-  mu_epsilon <- 0
+  temp <- time_and_proc_vecs(time, time_jump, delta_x, ngrid)
+  X <- temp$X
+  time <- temp$time
+  #print(X)
   
-# BM variance 
+  # BM variance
   sigma_2eps <- (2 / (2 - sigma)) * epsilon ^ (2 - sigma)
   W <- rep(0, ngrid + N)
   W[2:(ngrid + N)] <- cumsum(W[1:(ngrid + N - 1)] +
-                             rnorm(ngrid + N - 1, 0,
-                                   sqrt( sigma_2eps * (time[2:(ngrid+N)] - time[1:(ngrid+N-1)])))) 
-
-  X <- c(0, rep(mu_epsilon * (t_fin - t_in) / ngrid, ngrid - 1))
-  X <- c(delta_x, X)
-  X <- X[index]
-  X <- cumsum(X)
+                               rnorm(ngrid + N - 1, 0,
+                                     sqrt( sigma_2eps * (time[2:(ngrid+N)] - time[1:(ngrid+N-1)]))))
   X <- X + W
   if (show_plot){
     plot(time, X)
@@ -142,41 +149,13 @@ coupled_stable_processes <- function(t_in, t_fin, ngrid, epsilon, eps2, sigma, s
   delta_x <- (2*rbinom(N,1,0.5)-1) * (rpareto(N, sigma, epsilon)+epsilon)
   
   index <- which(abs(delta_x) < eps2)
-  delta_x_thin <- delta_x[-index]
-  time_jump_thin <- time_jump[-index]
   
   time <- seq(t_in, t_fin, length.out = ngrid)
-  time_thin <- c(time_jump_thin, time)
-  time <- c(time_jump, time)
+  exact <- time_and_proc_vecs(time, time_jump, delta_x, ngrid)
+  approx <- time_and_proc_vecs(time, time_jump[-index], delta_x[-index], ngrid)
   
-  index <- order(time)
-  index_thin <- order(time_thin)
-  time <- sort(time)
-  time_thin <- sort(time_thin)
-  # mu_epsilon <- (1 - epsilon ^ (1 - sigma)) / (1-sigma)
-  mu_epsilon <- 0
-  X <- c(0, rep(mu_epsilon * (t_fin - t_in) / ngrid, ngrid - 1))
-  X_thin <- rep(0, ngrid)
-  
-  X <- c(delta_x, X)
-  X_thin <- c(delta_x_thin, X_thin)
-  
-  X <- X[index]
-  X_thin <- X_thin[index_thin]
-  
-  X <- cumsum(X)
-  X_thin <- cumsum(X_thin)
-  if (show_plot){
-    plot(time, X)
-    lines(time_thin, X_thin, type = 'o', col = 'red')
-    #plot_process(time, time_jump,delta_x, X)
-    print( paste("last element of simulated sample path:", X[length(X)]))
-    print(paste("summing all the jumps:", sum(delta_x)))
-  }
-  return(c(X[length(X)], X_thin[length(X_thin)]))
+  return(c(exact$X[length(exact$X)], approx$X[length(approx$X)]))
 }
-coupled_stable_processes(0,1,1000, 1e-4, 1e-1, 0.5,T)
-
 
 plot_errors <- function(sigma, reps, eps){
   errors <- rep(0, reps)
