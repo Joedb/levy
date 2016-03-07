@@ -134,6 +134,68 @@ stable_process <- function(t_in, t_fin, ngrid, epsilon, sigma, show_plot = F) {
   return(X[length(X)])
 }
 
+coupled_stable_processes <- function(t_in, t_fin, ngrid, epsilon, eps2, sigma, show_plot = F) {
+  # Simulation of jumps
+  M <- 2 * epsilon ^ (- sigma) / sigma
+  N <- rpois(1, (t_fin-t_in) * M)
+  time_jump<- runif(N, t_in, t_fin)
+  delta_x <- (2*rbinom(N,1,0.5)-1) * (rpareto(N, sigma, epsilon)+epsilon)
+  
+  index <- which(abs(delta_x) < eps2)
+  delta_x_thin <- delta_x[-index]
+  time_jump_thin <- time_jump[-index]
+  
+  time <- seq(t_in, t_fin, length.out = ngrid)
+  time_thin <- c(time_jump_thin, time)
+  time <- c(time_jump, time)
+  
+  index <- order(time)
+  index_thin <- order(time_thin)
+  time <- sort(time)
+  time_thin <- sort(time_thin)
+  # mu_epsilon <- (1 - epsilon ^ (1 - sigma)) / (1-sigma)
+  mu_epsilon <- 0
+  X <- c(0, rep(mu_epsilon * (t_fin - t_in) / ngrid, ngrid - 1))
+  X_thin <- rep(0, ngrid)
+  
+  X <- c(delta_x, X)
+  X_thin <- c(delta_x_thin, X_thin)
+  
+  X <- X[index]
+  X_thin <- X_thin[index_thin]
+  
+  X <- cumsum(X)
+  X_thin <- cumsum(X_thin)
+  if (show_plot){
+    plot(time, X)
+    lines(time_thin, X_thin, type = 'o', col = 'red')
+    #plot_process(time, time_jump,delta_x, X)
+    print( paste("last element of simulated sample path:", X[length(X)]))
+    print(paste("summing all the jumps:", sum(delta_x)))
+  }
+  return(c(X[length(X)], X_thin[length(X_thin)]))
+}
+coupled_stable_processes(0,1,1000, 1e-4, 1e-1, 0.5,T)
+
+
+plot_errors <- function(sigma, reps, eps){
+  errors <- rep(0, reps)
+  for (i in 1:reps){
+    X <- coupled_stable_processes(0,1,1000,eps[1],eps[2], sigma)
+    errors[i] <-  X[1]-X[2]
+  }
+  print(var(errors))
+  print(2/ (2-sigma) * eps[2]^(2-sigma))
+  qqnorm(errors/sqrt(2/ (2-sigma) * eps[2]^(2-sigma)))
+  df <- data.frame(x = errors)
+  p <- ggplot(df, aes(x = x))
+  print(p +geom_density())
+}
+
+plot_errors(0.5, 1e4, eps = c(1e-5, 1e-1))
+
+
+
 empirical_stable_distr <- function(epsilon, sigma, num_samples){
   simul_val <- rep(0, num_samples)
   for (i in 1:num_samples){
