@@ -68,26 +68,12 @@ compare_distr <- function(distr_A, distr_B){
 
 compare_density_plots<-function(distr_A, distr_B, xlim = c(-50, 50)){
   # plots density plots for two distributions on the same axis
-  distr_A <- sort(distr_A)
-  distr_B <- sort(distr_B)
   nA <- length(distr_A)
   nB <- length(distr_B)
-  union <- matrix(c(distr_A, distr_B,rep(1, nA), rep(2, nB)), ncol = 2)
-  union <- union[order(union[,1]),]
-  df = data.frame(x = union[,1], group = union[,2])
+  df = data.frame(x = c(distr_A, distr_B), group = c(rep(1, nA), rep(2, nB)))
   p <- ggplot(df, aes(x = x))
   print(p + geom_density(aes(group = group, colour = factor(group))) + xlim(xlim))
 }
-
-simul_stable <- function(n, alpha){
-  W <- rexp(n)
-  Phi <- runif(n, min = -0.5 * pi, max = 0.5 * pi)
-  S <- sin(alpha * Phi)/cos(Phi)^(1/alpha) * (cos(Phi * (1-alpha))/W)^((1-alpha)/alpha)
-  return(2 ^(1/alpha) * S)
-}
-
-
-
 
 test_stable_package <- function(){
   # not incredibly useful, just to make sure that the package
@@ -192,6 +178,9 @@ compare_stable_fixed_eps(0.01, 0.5, 10000, T)
 compare_stable(seq(1,0.1, by = -0.1), 0.5, 1000)
 
 simulate_gamma2 <- function(iter, sigma, tau, epsilon){
+  # ----------------------------- #
+  # disregard this abomination!!! #
+  # ----------------------------- #
   x_star = -1/tau * log(sigma * epsilon ^ sigma)
   pareto <- function(x){
     dpareto(x,sigma, epsilon)
@@ -230,7 +219,14 @@ simulate_gamma2 <- function(iter, sigma, tau, epsilon){
 }
 
 simulate_gamma <- function(n, sigma, tau, epsilon){
-  ...
+  samples <- rep(0, n)
+  for (i in 1:n){
+    prop <- rpareto(1, sigma, epsilon)+epsilon
+    while (runif(1) > exp(-tau * prop))
+      prop <- rpareto(1, sigma, epsilon)+epsilon
+    samples[i] <- prop
+  }
+  return(samples)
 }
 
 gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
