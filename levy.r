@@ -175,8 +175,6 @@ plot_errors <- function(sigma, reps, eps, c1, c2){
 
 plot_errors(0.5, 1e4, eps = c(1e-6, 1e-3), 1,0)
 
-
-
 empirical_stable_distr <- function(epsilon, sigma, c1, c2, num_samples){
   simul_val <- rep(0, num_samples)
   for (i in 1:num_samples){
@@ -184,7 +182,6 @@ empirical_stable_distr <- function(epsilon, sigma, c1, c2, num_samples){
   }
   return(simul_val)
 }
-#==========================================================================
 
 berry_esseen_stable <- function(epsilon, sigma, c1, c2){
   sigma_sq <- (c1+c2) * epsilon^(2-sigma)/(2-sigma)
@@ -193,9 +190,26 @@ berry_esseen_stable <- function(epsilon, sigma, c1, c2){
   return(BE_bound)
 }
 
-compare_stable_fixed_eps <- function(epsilon, sigma, c1, c2, num_samples, density = F){
+#==========================================================================
+
+sim_cauchy <- function(sigma, c1, c2, num_samples){
+  if (c1-c2 != 0 || sigma != 1)
+    print('This is not Cauchy!!!')
+  return(rcauchy(num_samples, location = 0, scale = (c1+c2)))
+}
+
+sim_invGauss <- function(sigma, c1, c2, num_samples){
+  if ((c1-c2)/(c1+c2) != 1 || sigma != 0.5)
+    print('This is not Inverse Gaussian!!!')
+  return(rinvgauss(num_samples, mu, lambda=1))
+}
+
+compare_stable_fixed_eps <- function(epsilon, sigma, c1, c2, num_samples, density = F, user_distribution = NULL){
   empirical <- empirical_stable_distr(epsilon, sigma, c1, c2, num_samples)
-  exact <- empirical_stable_distr(1e-6, sigma, c1, c2, num_samples)
+  if (!is.null(user_distribution))
+    exact <- user_distribution(sigma, c1, c2, num_samples)
+  else
+    exact <- empirical_stable_distr(1e-6, sigma, c1, c2, num_samples)
   #rstable(num_samples, alpha = sigma, beta = 0, gamma = 2^(1/sigma))
   if (density)
     compare_density_plots(empirical, exact)
@@ -231,6 +245,8 @@ compare_stable <- function(epsilon_range, sigma,c1, c2, num_samples){
 # run some tests
 compare_stable_fixed_eps(0.01, 0.5,1, 1, 10000, F)
 compare_stable_fixed_eps(0.01, 0.5,1, 1, 10000, T)
+compare_stable_fixed_eps(0.01, 0.5,1, 1, 10000, T, sim_invGauss)
+
 compare_stable(seq(1,0.1, by = -0.1), 0.5,1, 1, 1000)
 
 simulate_gamma2 <- function(iter, sigma, tau, epsilon){
