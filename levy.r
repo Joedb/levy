@@ -293,6 +293,9 @@ simulate_gamma2 <- function(iter, sigma, tau, epsilon){
 
 #============================== GAMMA PROCESS ==============================
 
+simulate_gengamma <- function(n, ){}
+
+
 
 simulate_gamma <- function(n, sigma, tau, epsilon){
   samples <- rep(0, n)
@@ -319,11 +322,40 @@ time_and_proc_vecs_gengamma <- function(time, time_jump, delta_x, t_in, t_fin, n
 }
 
 coupled_gengamma_processes <- function(t_in, t_fin, ngrid, epsilon, eps2, sigma, tau, show_plot = F) {
-  # Simulation of jumps
-  M <- integrate(function(x) x^(-1-sigma) * exp(-tau * x), epsilon, Inf)[[1]]
-  N <- rpois(1, (t_fin-t_in) * M)
+#  # Simulation of jumps
+#  M <- integrate(function(x) x^(-1-sigma) * exp(-tau * x), epsilon, Inf)[[1]]
+#  N <- rpois(1, (t_fin-t_in) * M)
+#  time_jump <- runif(N, t_in, t_fin)
+#  delta_x <- simulate_gamma(N, sigma, tau, epsilon)
+
+# *********** Teh-Fav alg ***************
+  density <- function (s)
+    return (s^(-1-sigma) * exp(-tau * s)) 
+  w <- function (s,t)
+    return (t^(-1-sigma) * exp(-tau * s))
+  W <- function (s,t)
+    return (integrate(function(x) w(x,t), t, s)[[1]])
+  W_inv <- function (r, t)
+    return (t - (1 / tau) * log(1 - (r * tau) / (t ^ (- 1 - sigma) * exp(- tau * t))))
+
+  delta_x <- c()
+  t <- epsilon
+  flag <- 0
+  while (flag == 0){
+    r <- rexp(1)
+    if (r > W(Inf, t))
+      flag <- 1
+    else {
+      t_prime <- W_inv(r, t)
+      if (runif(1) <  density(t_prime) / w(t_prime, t))
+        delta_x <- c(delta_x, t_prime)
+      t <- t_prime
+    }
+  }
+
+  N <- length(delta_x)
   time_jump <- runif(N, t_in, t_fin)
-  delta_x <- simulate_gamma(N, sigma, tau, epsilon)
+# ****************************************
   
   index <- which(abs(delta_x) < eps2)
   
@@ -352,17 +384,42 @@ plot_gengamma_errors <- function(sigma, tau, reps, eps){
 
 gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
 # Simulation of jumps
-  density <- function(x)
-    return (x^(-1-sigma) * exp(-tau * x))  
-  M <- integrate(density, epsilon, Inf)[[1]]
-  M2 <- epsilon^(-sigma)/sigma * exp(-tau * epsilon) - 
-    tau/sigma * gamma(1-sigma)/tau^(1-sigma) * (1-pgamma(epsilon, 1-sigma, tau))
-  print(M)
-  print(M2)
-  
-  N <- rpois(1, (t_fin - t_in) * M)
+#  density <- function(x)
+#    return (x^(-1-sigma) * exp(-tau * x))  
+#  M <- integrate(density, epsilon, Inf)[[1]]
+#  print(M)
+#  N <- rpois(1, (t_fin - t_in) * M)
+#  time_jump <- runif(N, t_in, t_fin)
+#  delta_x <- simulate_gamma(N, sigma, tau, epsilon)
+
+# *********** Teh-Fav alg ***************
+  density <- function (s)
+    return (s^(-1-sigma) * exp(-tau * s)) 
+  w <- function (s,t)
+    return (t^(-1-sigma) * exp(-tau * s))
+  W <- function (s,t)
+    return (integrate(function(x) w(x,t), t, Inf)[[1]])
+  W_inv <- function (r, t)
+    return (t - (1 / tau) * log(1 - (r * tau) / (t ^ (- 1 - sigma) * exp(- tau * t))))
+
+  delta_x <- c()
+  t <- epsilon
+  flag <- 0
+  while (flag == 0){
+    r <- rexp(1)
+    if (r > W(Inf, t))
+      flag <- 1
+    else {
+      t_prime <- W_inv(r, t)
+      if (runif(1) <  density(t_prime) / w(t_prime, t))
+        delta_x <- c(delta_x, t_prime)
+      t <- t_prime
+    }
+  }
+
+  N <- length(delta_x)
   time_jump <- runif(N, t_in, t_fin)
-  delta_x <- simulate_gamma(N, sigma, tau, epsilon)
+# ****************************************
 
   time <- seq(t_in, t_fin, length.out = ngrid)
   time <- c(time_jump, time)
@@ -372,8 +429,8 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   mean_jump_dens <- function(x)
      return (x^(-sigma) * exp(-tau * x))  
   mu_epsilon <- - integrate(mean_jump_dens, epsilon, 1)[[1]]
-
-# BM variance 
+  
+                                        # BM variance 
   sigma_2eps <- integrate(function(x) exp(-tau * x) * x ^ (1-sigma),0,epsilon)[[1]]
   print(sigma_2eps)
   W <- rep(0, ngrid + N)
@@ -390,7 +447,16 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   plot(time, X)
   return (N)
 }
-
-gamma_process(0,1,1000,0.01,0.05,0.04)
+                            
+gamma_process(0,1,1000,0.1,0.05,0.04)
 plot_gengamma_errors(0.5, 0.5, 1e4, c(1e-5, 1e-2))
 #============================================================================
+
+
+sigma <- 0.5
+tau <- 0.5
+w <- function (s,t)
+  return (t^(-1-sigma) * exp(-tau * s))
+W <- function (s,t)
+  return (integrate(function(x) w(x,t), t, Inf))
+W(1,4)
