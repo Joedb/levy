@@ -274,6 +274,10 @@ simulate_gamma2 <- function(iter, sigma, tau, epsilon){
   return(samples)
 }
 
+
+#============================== GAMMA PROCESS ==============================
+
+
 simulate_gamma <- function(n, sigma, tau, epsilon){
   samples <- rep(0, n)
   for (i in 1:n){
@@ -285,7 +289,51 @@ simulate_gamma <- function(n, sigma, tau, epsilon){
   return(samples)
 }
 
-#============================== GAMMA PROCESS ==============================
+
+time_and_proc_vecs_gengamma <- function(time, time_jump, delta_x, t_in, t_fin, ngrid, epsilon, sigma, tau){
+  time <- c(time_jump, time)
+  index <- order(time)
+  time <- sort(time)
+  mu_epsilon <- integrate(function(x) exp(-tau*x) * x^(-sigma), 0, epsilon)[[1]]
+  X <- c(0,rep(mu_epsilon* (t_fin - t_in) / ngrid,ngrid-1))
+  X <- c(delta_x, X)
+  X <- X[index]
+  X <- cumsum(X)
+  return(list(time = time, X = X))
+}
+
+coupled_gengamma_processes <- function(t_in, t_fin, ngrid, epsilon, eps2, sigma, tau, show_plot = F) {
+  # Simulation of jumps
+  M <- integrate(function(x) x^(-1-sigma) * exp(-tau * x), epsilon, Inf)[[1]]
+  N <- rpois(1, (t_fin-t_in) * M)
+  time_jump <- runif(N, t_in, t_fin)
+  delta_x <- simulate_gamma(N, sigma, tau, epsilon)
+  
+  index <- which(abs(delta_x) < eps2)
+  
+  time <- seq(t_in, t_fin, length.out = ngrid)
+  exact <- time_and_proc_vecs_gengamma(time, time_jump, delta_x, t_in, t_fin, ngrid, epsilon, sigma, tau)
+  approx <- time_and_proc_vecs_gengamma(time, time_jump[-index], delta_x[-index], t_in, t_fin, ngrid, eps2, sigma, tau)
+  
+  return(c(exact$X[length(exact$X)], approx$X[length(approx$X)]))
+}
+
+plot_gengamma_errors <- function(sigma, tau, reps, eps){
+  errors <- rep(0, reps)
+  for (i in 1:reps){
+    X <- coupled_gengamma_processes(0,1,1000,eps[1],eps[2], sigma, tau)
+    errors[i] <-  X[1]-X[2]
+  }
+  print(var(errors))
+  print(integrate(function(x) exp(-tau * x) * x ^ (1-sigma),0,eps[2])[[1]])
+  qqnorm(errors / sqrt(integrate(function(x) exp(-tau * x) * x ^ (1-sigma),0,eps[2])[[1]]))
+  abline(0,1,col=2)
+  df <- data.frame(x = errors)
+  #p <- ggplot(df, aes(x = x))
+  #print(p +geom_density())
+}
+
+
 gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
 # Simulation of jumps
   density <- function(x)
@@ -298,7 +346,7 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   
   N <- rpois(1, (t_fin - t_in) * M)
   time_jump <- runif(N, t_in, t_fin)
-  delta_x <- simulate_gamma(N, sigma, tau, epsilon)/ M
+  delta_x <- simulate_gamma(N, sigma, tau, epsilon)
 
   time <- seq(t_in, t_fin, length.out = ngrid)
   time <- c(time_jump, time)
@@ -327,19 +375,6 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   return (N)
 }
 
-gamma_process(0,1,1000,0.1,0.05,0.04)
+gamma_process(0,1,1000,0.01,0.05,0.04)
+plot_gengamma_errors(0.5, 0.5, 1e4, c(1e-5, 1e-2))
 #============================================================================
-
-# pgamma(epsilon, 2-sigma, tau) * gamma(2-sigma) /tau^(2-sigma)
-
-
-density <- function(x)
-    return (x^(-1-0.5) * exp(-0.5 * x))  
-(M <- integrate(density, 0.01, Inf))
-class(M)
-as.double(M)
-M[[1]]
-
-mean_jump_dens <- function(x)
-  return (x^(-0.5) * exp(-0.5 * x)) 
-(mu_epsilon <- integrate(mean_jump_dens, 0.01, 1)[[1]])
