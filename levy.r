@@ -105,7 +105,7 @@ time_and_proc_vecs <- function(time, time_jump, delta_x, t_in, t_fin, ngrid, eps
   time <- c(time_jump, time)
   index <- order(time)
   time <- sort(time)
-  mu_epsilon <- epsilon^(1-sigma)/(1-sigma)*(c1-c2)
+  mu_epsilon <- -(1-epsilon^(1-sigma))/(1-sigma)*(c1-c2)
   # mu_epsilon * (t_fin - t_in) / ngrid
   X <- c(0,rep(mu_epsilon* (t_fin - t_in) / ngrid,ngrid-1))
   X <- c(delta_x, X)
@@ -129,7 +129,6 @@ stable_process <- function(t_in, t_fin, ngrid, epsilon, c1, c2, sigma, show_plot
   
   # BM variance
   sigma_2eps <- ((c1+c2) / (2 - sigma)) * epsilon ^ (2 - sigma)
-  print(sigma_2eps)
   W <- rep(0, ngrid + N)
   W[2:(ngrid + N)] <- cumsum(W[1:(ngrid + N - 1)] +
                                rnorm(ngrid + N - 1, 0,
@@ -142,7 +141,7 @@ stable_process <- function(t_in, t_fin, ngrid, epsilon, c1, c2, sigma, show_plot
   return(X[length(X)])
 }
 
-stable_process(0,1,1000,0.001,2,0.4,0.5,T)
+stable_process(0,1,1000,0.001,c1 = 2,c2 = 0.4,sigma = 0.5, show_plot = T)
 
 coupled_stable_processes <- function(t_in, t_fin, ngrid, eps_exact, eps_approx, c1, c2, sigma, show_plot = F) {
   # Simulation of jumps
@@ -178,37 +177,38 @@ plot_errors(0.5, 1e4, eps = c(1e-6, 1e-3), 1,0)
 
 
 
-empirical_stable_distr <- function(epsilon, sigma, num_samples){
+empirical_stable_distr <- function(epsilon, sigma, c1, c2, num_samples){
   simul_val <- rep(0, num_samples)
   for (i in 1:num_samples){
-    simul_val[i] <- stable_process(0,1,1000,epsilon, sigma)
+    simul_val[i] <- stable_process(0,1,1000,epsilon, c1, c2, sigma)
   }
   return(simul_val)
 }
 #==========================================================================
 
-berry_esseen_stable <- function(epsilon, sigma){
-  sigma_sq <- 2 * epsilon^(2-sigma)/(2-sigma)
-  third_moment <- 2 * epsilon^(3-sigma)/(3-sigma)
+berry_esseen_stable <- function(epsilon, sigma, c1, c2){
+  sigma_sq <- (c1+c2) * epsilon^(2-sigma)/(2-sigma)
+  third_moment <- (c1+c2) * epsilon^(3-sigma)/(3-sigma)
   BE_bound <- 0.7975 * sigma_sq ^(-3/2) * third_moment
   return(BE_bound)
 }
 
-compare_stable_fixed_eps <- function(epsilon, sigma, num_samples, density = F){
-  empirical <- empirical_stable_distr(epsilon, sigma, num_samples)
-  exact <- rstable(num_samples, alpha = sigma, beta = 0, gamma = 2^(1/sigma))
+compare_stable_fixed_eps <- function(epsilon, sigma, c1, c2, num_samples, density = F){
+  empirical <- empirical_stable_distr(epsilon, sigma, c1, c2, num_samples)
+  exact <- empirical_stable_distr(1e-6, sigma, c1, c2, num_samples)
+  #rstable(num_samples, alpha = sigma, beta = 0, gamma = 2^(1/sigma))
   if (density)
     compare_density_plots(empirical, exact)
   else{
     temp <- compare_distr(empirical, exact)
-    bound <- berry_esseen_stable(epsilon, sigma)
+    bound <- berry_esseen_stable(epsilon, sigma, c1, c2)
     plot(temp$x, temp$dist, typ = 'l', xlim = c(-100,100), ylim = c(0, max(c(1.1 * bound,temp$dist))))
     print(bound)
     abline(a = bound, b = 0, col = 'red')
   }
 }
 
-compare_stable <- function(epsilon_range, sigma, num_samples){
+compare_stable <- function(epsilon_range, sigma,c1, c2, num_samples){
   n <- length(epsilon_range)
   max_discrep <- rep(0, n)
   BE_bound <- rep(0, n)
@@ -216,11 +216,12 @@ compare_stable <- function(epsilon_range, sigma, num_samples){
   for (i in seq_along(epsilon_range)){
     print(paste("Starting loop",i,"out of",n))
     eps <- epsilon_range[i]
-    empirical <- empirical_stable_distr(eps, sigma, num_samples)
-    exact <- rstable(num_samples, alpha = sigma, beta = 0)
+    empirical <- empirical_stable_distr(eps, sigma, c1, c2, num_samples)
+    exact <- empirical_stable_distr(1e-5, sigma, c1, c2, num_samples)
+    #rstable(num_samples, alpha = sigma, beta = 0)
     temp <- compare_distr(empirical, exact)
     max_discrep[i] <- max(temp$dist)
-    BE_bound[i] <- berry_esseen_stable(eps, sigma)
+    BE_bound[i] <- berry_esseen_stable(eps, sigma, c1, c2)
   }
   
   plot(epsilon_range, BE_bound, type = 'l', col = 'red', ylim = c(0, BE_bound[1]))
@@ -228,10 +229,9 @@ compare_stable <- function(epsilon_range, sigma, num_samples){
 }
 
 # run some tests
-compare_stable_fixed_eps(0.01, 0.5, 10000, F)
-compare_stable_fixed_eps(0.01, 0.5, 10000, T)
-?rpareto
-compare_stable(seq(1,0.1, by = -0.1), 0.5, 1000)
+compare_stable_fixed_eps(0.01, 0.5,1, 1, 10000, F)
+compare_stable_fixed_eps(0.01, 0.5,1, 1, 10000, T)
+compare_stable(seq(1,0.1, by = -0.1), 0.5,1, 1, 1000)
 
 simulate_gamma2 <- function(iter, sigma, tau, epsilon){
   # ----------------------------- #
