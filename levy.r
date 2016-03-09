@@ -428,8 +428,8 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   X <- c(0, rep(- (t_fin - t_in) / ngrid, ngrid - 1))
   mean_jump_dens <- function(x)
      return (x^(-sigma) * exp(-tau * x))  
-  mu_epsilon <- - integrate(mean_jump_dens, epsilon, 1)[[1]]
-  
+  mu_epsilon <- integrate(mean_jump_dens, epsilon, 1)[[1]]
+#  mu_epsilon <- 0
                                         # BM variance 
   sigma_2eps <- integrate(function(x) exp(-tau * x) * x ^ (1-sigma),0,epsilon)[[1]]
   print(sigma_2eps)
