@@ -4,11 +4,12 @@ require('ggplot2')
 require('stabledist')
 require('rootSolve')
 
-plot_process <- function(time, jump_time, jump_size, X){
+plot_process <- function(time, jump_time, jump_size, X, plotMe=T){
   # plots a sample path of the levy process
   index = order(jump_time)
   jump_time = sort(jump_time)
   jump_size = jump_size[index]
+  print(jump_time)
   n = length(X)
   tj = length(jump_time)
   X_new = rep(0, n + tj)
@@ -27,16 +28,18 @@ plot_process <- function(time, jump_time, jump_size, X){
       X_new[i + offset] = X[i]
       time_new[i + offset] = time[i]
       X_group_ind[i + offset] = offset
-      if (offset != tj-1){
+      if (offset != tj){
         next_jump = jump_time[1 + offset]
       }
     }
   }
   df = data.frame(x = time_new, y = X_new, group = X_group_ind)
   p <- ggplot(df, aes(x = x, y = y, group = group))
-  print(p+geom_line())
+  if(plotMe)
+    print(p+geom_line())
   return(df)
 }
+
 
 compare_distr <- function(distr_A, distr_B){
   # Kolmogorov-Smirnoff type of cdf comparison
@@ -291,9 +294,40 @@ simulate_gamma2 <- function(iter, sigma, tau, epsilon){
 }
 
 
+
+
+plot_many <- function(times, jump_times, jump_sizes, Xs){
+  n <- length(times)
+  df <- plot_process(times[[1]], jump_times[[1]], jump_sizes[[1]], Xs[[1]], plotMe = T)
+  df$col <- 1
+  last_group <- max(df$group)
+  if (n > 1){
+    for (i in 2:n){
+      temp <- plot_process(times[[i]], jump_times[[i]], jump_sizes[[i]], Xs[[i]], plotMe = F)
+      temp$col <- i
+      temp$group <- temp$group + last_group + 1
+      last_group <- max(temp$group)
+      df <- rbind(df, temp)
+    }
+  }
+  df <- as.data.frame(df)
+  p <- ggplot(df, aes(x = x, y = y, group = group,
+                      color = factor(col))) + xlab('time') + ylab('X(t)')
+  #pdf(file="gengamma.pdf",paper="letter")
+  print(p+geom_line())
+        #+ylim(c(-5,20)))
+
+  return(df)
+}
+gamma_process(0,1,1000,0.1,0.05,0.04,4)
+
+
+
+
+
 #============================== GAMMA PROCESS ==============================
 
-simulate_gengamma <- function(n, ){}
+
 
 
 
@@ -382,7 +416,10 @@ plot_gengamma_errors <- function(sigma, tau, reps, eps){
 }
 
 
-gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma, n_paths=1) {
 # Simulation of jumps
 #  density <- function(x)
 #    return (x^(-1-sigma) * exp(-tau * x))  
@@ -391,6 +428,13 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
 #  N <- rpois(1, (t_fin - t_in) * M)
 #  time_jump <- runif(N, t_in, t_fin)
 #  delta_x <- simulate_gamma(N, sigma, tau, epsilon)
+
+  Xs <- list()
+  times <- list()
+  time_jumps <- list()
+  delta_xs <- list()
+
+  for (i in 1:n_paths) {
 
 # *********** Teh-Fav alg ***************
   density <- function (s)
@@ -428,7 +472,7 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   X <- c(0, rep(- (t_fin - t_in) / ngrid, ngrid - 1))
   mean_jump_dens <- function(x)
      return (x^(-sigma) * exp(-tau * x))  
-  mu_epsilon <- integrate(mean_jump_dens, epsilon, 1)[[1]]
+  mu_epsilon <- - integrate(mean_jump_dens, epsilon, 1)[[1]]
 #  mu_epsilon <- 0
                                         # BM variance 
   sigma_2eps <- integrate(function(x) exp(-tau * x) * x ^ (1-sigma),0,epsilon)[[1]]
@@ -444,19 +488,24 @@ gamma_process <- function(t_in, t_fin, ngrid, epsilon, tau, sigma) {
   X <- X[index]
   X <- cumsum(X)
   X <- X + W
-  plot(time, X)
+  #plot(time, X)
+
+  Xs[[i]] <- X
+  times[[i]] <- time 
+  time_jumps[[i]] <- time_jump 
+  delta_xs[[i]] <- delta_x 
+}
+  if(n_paths == 1)
+    plot_process(time, time_jump, delta_x, X)
+  else
+    plot_many(times, time_jumps, delta_xs, Xs)
   return (N)
 }
-                            
-gamma_process(0,1,1000,0.1,0.05,0.04)
-plot_gengamma_errors(0.5, 0.5, 1e4, c(1e-5, 1e-2))
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 
+
+                      
+gamma_process(0,1,1000,0.1,0.05,0.04,4)
+plot_gengamma_errors(0.5, 0.5, 1e4, c(1e-5, 1e-1))
 #============================================================================
 
-
-sigma <- 0.5
-tau <- 0.5
-w <- function (s,t)
-  return (t^(-1-sigma) * exp(-tau * s))
-W <- function (s,t)
-  return (integrate(function(x) w(x,t), t, Inf))
-W(1,4)
